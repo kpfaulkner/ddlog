@@ -38,6 +38,18 @@ func generateQuery( env string, level string, query string) string {
 	return fmt.Sprintf(queryTemplate, env, level)
 }
 
+// just count for now... needs to add a lot more :)
+func displayStats(resp *models.DatadogQueryResponse) {
+	counts := len(resp.Logs)
+	fmt.Printf("Result count %d\n", counts)
+}
+
+func displayResults(resp *models.DatadogQueryResponse) {
+	for _,l := range resp.Logs {
+		fmt.Printf("%s : %s\n", l.Content.Timestamp, l.Content.Message)
+	}
+}
+
 func main() {
 	fmt.Printf("So it begins...\n")
 
@@ -45,14 +57,13 @@ func main() {
 	level := flag.String("level", "error", "level of logs to query against. info, warn, error")
 	query := flag.String("query", "", "Part of the query that is NOT specifying level or env.")
 	lastNMins := flag.Int("mins", 15, "Last N minutes to be searched")
+	stats := flag.Bool("stats", false, "Give summary/stats of logs as opposed to raw logs.")
 
 	flag.Parse()
 
 	config := readConfig()
 	dd := pkg.NewDatadog(config.DatadogAPIKey, config.DatadogAppKey)
 
-
-	// example query. "@environment:prod status:(error)", request.Range.From, request.Range.To
 
 	startDate := time.Now().UTC().Add( time.Duration(-1 * (*lastNMins)) * time.Minute)
 	endDate := time.Now()
@@ -64,8 +75,11 @@ func main() {
 		return
 	}
 
-	for _,l := range resp.Logs {
-	  fmt.Printf("%s : %s\n", l.Content.Timestamp, l.Content.Message)
-	}
+	if *stats {
+		// just the stats. :)
+		displayStats(resp)
 
+	} else {
+		displayResults(resp)
+	}
 }
