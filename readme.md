@@ -1,9 +1,9 @@
-#DDLog
+DDLog
 
 
 DataDog log tool. Simple CLI tool for getting logs/stats etc.
 
-##Usage
+Usage
 
 Firstly, create API/APP key from within the Datadog site and populate config.json
 
@@ -12,7 +12,7 @@ There are a number of assumptions (will be removed/configured later). You have a
 
 A second assumption is that you have a facet called "level" which is info,warn or error.
 
-##CLI Options
+CLI Options
 
 - env : test/stage/prod
 - level : info/warn/error
