@@ -8,17 +8,32 @@ import (
 	"github.com/kpfaulkner/ddlog/pkg/models"
 	"log"
 	"os"
+	"os/user"
 	"strings"
 	"time"
 )
 
 
+// read config from multiple locations.
+// first try local dir...
+// if fails, try ~/.ddlog/config.json
 func readConfig() models.Config{
-	configFile, err := os.Open("config.json-real")
-	defer configFile.Close()
+	var configFile *os.File
+	var err error
+	configFile, err = os.Open("config.json")
 	if err != nil {
-		log.Panic("Unable to read config.json")
+		// try and read home dir location.
+		usr, err := user.Current()
+		if err != nil {
+			log.Fatal( err )
+		}
+		configPath := fmt.Sprintf("%s/.ddlog/config.json", usr.HomeDir)
+		configFile, err = os.Open(configPath)
+		if err != nil {
+			log.Fatal( err )
+		}
 	}
+	defer configFile.Close()
 
 	config := models.Config{}
 	jsonParser := json.NewDecoder(configFile)
