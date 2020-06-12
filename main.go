@@ -118,11 +118,14 @@ func displayStats(resp *models.DatadogQueryResponse, startDate time.Time, endDat
 	fmt.Printf("Result count %d\n", counts)
 }
 
-func displayResults(resp *models.DatadogQueryResponse) {
+func displayResults(resp *models.DatadogQueryResponse, delim bool) {
 	loc,_ := time.LoadLocation("Local")
 	for _,l := range resp.Logs {
 		timeString := generateTimeString(l.Content.Timestamp, loc)
 		fmt.Printf("%s : %s\n", timeString, l.Content.Message)
+		if delim {
+			fmt.Printf("-----------------------------------------------------------------\n")
+		}
 	}
 }
 
@@ -134,6 +137,7 @@ func main() {
 	query := flag.String("query", "", "Part of the query that is NOT specifying level or env.")
 	lastNMins := flag.Int("mins", 15, "Last N minutes to be searched")
 	stats := flag.Bool("stats", false, "Give summary/stats of logs as opposed to raw logs.")
+	delim := flag.Bool("delim", false, "Delimit log entries. Put clear indication between log entries (helpful for spammy logs")
 
 	flag.Parse()
 
@@ -156,6 +160,6 @@ func main() {
 		displayStats(resp, startDate, endDate)
 
 	} else {
-		displayResults(resp)
+		displayResults(resp, *delim)
 	}
 }
