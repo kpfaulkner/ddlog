@@ -42,15 +42,26 @@ func readConfig() models.Config{
 	return config
 }
 
-func generateQuery( env string, level string, query string) string {
+func generateQuery( env string, levels string, query string) string {
 	queryTemplate := "@environment:%s status:(%s)"
 
+	// status:(info OR warn)
 	if strings.TrimSpace(query) != "" {
 		queryTemplate = queryTemplate + ` "%s"`
-		return fmt.Sprintf(queryTemplate, env,level,query)
+		return fmt.Sprintf(queryTemplate, env,levels,query)
 	}
 
-	return fmt.Sprintf(queryTemplate, env, level)
+	// check multi level or not.
+	levelSplit := strings.Split(levels, ",")
+	levelElements := []string{levelSplit[0]}
+
+	if len(levelSplit) > 1 {
+		for _,lvl := range levelSplit[1:] {
+			levelElements = append(levelElements,"OR")
+			levelElements = append(levelElements,lvl)
+		}
+	}
+	return fmt.Sprintf(queryTemplate, env, strings.Join(levelElements, " "))
 }
 
 // generateMapForResults map timestamp to list of logs that happened during that minute
@@ -119,7 +130,7 @@ func main() {
 	fmt.Printf("So it begins...\n")
 
 	env := flag.String("env", "prod", "environment: test,stage,prod")
-	level := flag.String("level", "error", "level of logs to query against. info, warn, error")
+	levels := flag.String("levels", "error", "level of logs to query against. info, warn, error. Can be singular or comma separated")
 	query := flag.String("query", "", "Part of the query that is NOT specifying level or env.")
 	lastNMins := flag.Int("mins", 15, "Last N minutes to be searched")
 	stats := flag.Bool("stats", false, "Give summary/stats of logs as opposed to raw logs.")
@@ -133,7 +144,7 @@ func main() {
 	startDate := time.Now().UTC().Add( time.Duration(-1 * (*lastNMins)) * time.Minute)
 	endDate := time.Now()
 
-	formedQuery := generateQuery(*env, *level, *query)
+	formedQuery := generateQuery(*env, *levels, *query)
 	resp, err := dd.QueryDatadog(formedQuery, startDate, endDate)
 	if err != nil {
 		fmt.Printf("ERROR %s\n", err.Error())
