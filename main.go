@@ -53,15 +53,65 @@ func generateQuery( env string, level string, query string) string {
 	return fmt.Sprintf(queryTemplate, env, level)
 }
 
+// generateMapForResults map timestamp to list of logs that happened during that minute
+// the key (time) is rounded to minute.
+func generateMapForResults(resp *models.DatadogQueryResponse) map[time.Time][]models.DataDogLogContent {
+	m := make(map[time.Time][]models.DataDogLogContent)
+
+	for _,logEntry := range resp.Logs {
+
+		// rounded to minute
+		roundedTime := time.Date( logEntry.Content.Timestamp.Year(), logEntry.Content.Timestamp.Month(),
+														  logEntry.Content.Timestamp.Day(), logEntry.Content.Timestamp.Hour(),
+														  logEntry.Content.Timestamp.Minute(),0,0,logEntry.Content.Timestamp.Location())
+
+		var logs []models.DataDogLogContent
+		var ok bool
+		logs, ok = m[roundedTime]
+		if !ok {
+			logs = []models.DataDogLogContent{}
+			m[roundedTime] = logs
+		}
+		logs = append(logs, logEntry.Content)
+		m[roundedTime] = logs
+	}
+
+	return m
+}
+
+func generateTimeString( t time.Time, loc *time.Location) string {
+	lt := t.In(loc)
+	dZone,_ := t.Zone()
+	lZone,_ := lt.Zone()
+	return fmt.Sprintf("%s %s : %s %s", t.Format("2006-01-02 15:04:05"),dZone, lt.Format("2006-01-02 15:04:05"), lZone)
+}
+
 // just count for now... needs to add a lot more :)
-func displayStats(resp *models.DatadogQueryResponse) {
+func displayStats(resp *models.DatadogQueryResponse, startDate time.Time, endDate time.Time) {
+
+	loc,_ := time.LoadLocation("Local")
+	logsByTime := generateMapForResults(resp)
+	d := time.Date( startDate.Year(), startDate.Month(), startDate.Day(), startDate.Hour(), startDate.Minute(),0,0,
+								  startDate.Location())
+	for d.Before(endDate) {
+		l, ok := logsByTime[d]
+		if ok {
+			timeString := generateTimeString(d, loc)
+			fmt.Printf("%s : %d\n", timeString, len(l))
+		}
+
+		d = d.Add(1 * time.Minute)
+	}
+
 	counts := len(resp.Logs)
 	fmt.Printf("Result count %d\n", counts)
 }
 
 func displayResults(resp *models.DatadogQueryResponse) {
+	loc,_ := time.LoadLocation("Local")
 	for _,l := range resp.Logs {
-		fmt.Printf("%s : %s\n", l.Content.Timestamp, l.Content.Message)
+		timeString := generateTimeString(l.Content.Timestamp, loc)
+		fmt.Printf("%s : %s\n", timeString, l.Content.Message)
 	}
 }
 
@@ -92,7 +142,7 @@ func main() {
 
 	if *stats {
 		// just the stats. :)
-		displayStats(resp)
+		displayStats(resp, startDate, endDate)
 
 	} else {
 		displayResults(resp)
