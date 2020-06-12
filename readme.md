@@ -15,7 +15,7 @@ A second assumption is that you have a facet called "level" which is info,warn o
 ##CLI Options
 
 - env : test/stage/prod
-- level : info/warn/error
+- levels : info/warn/error.  Can be comma delimited to include multiple. eg. -levels "warn,error"
 - query : Raw Datadog query that is appended to the built in query (filtering via env and level)
 - mins : Last N minutes of logs to be searched
 - stats : Just show stats (counts currently) instead of displaying entire logs.
