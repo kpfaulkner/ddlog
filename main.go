@@ -49,8 +49,8 @@ func generateQuery( env string, levels string, query string, all bool) string {
 		return ""
 	}
 
-	//queryTemplate := "@environment:%s status:(%s)"
-	queryTemplate := "@EnvSource:%s status:(%s)"
+	queryTemplate := "@environment:%s status:(%s)"
+	//queryTemplate := "@EnvSource:%s status:(%s)"
 
 	// status:(info OR warn)
 	if strings.TrimSpace(query) != "" {
@@ -174,8 +174,8 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 func main() {
 	fmt.Printf("So it begins...\n")
 
-	env := flag.String("env", "", "environment: test,stage,prod")
-	levels := flag.String("levels", "", "level of logs to query against. info, warn, error. Can be singular or comma separated")
+	env := flag.String("env", "prod", "environment: test,stage,prod")
+	levels := flag.String("levels", "error", "level of logs to query against. info, warn, error. Can be singular or comma separated")
 	query := flag.String("query", "", "Part of the query that is NOT specifying level or env.")
 	lastNMins := flag.Int("mins", 15, "Last N minutes to be searched")
 	stats := flag.Bool("stats", false, "Give summary/stats of logs as opposed to raw logs.")
