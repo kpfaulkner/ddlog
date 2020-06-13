@@ -42,8 +42,15 @@ func readConfig() models.Config{
 	return config
 }
 
-func generateQuery( env string, levels string, query string) string {
-	queryTemplate := "@environment:%s status:(%s)"
+func generateQuery( env string, levels string, query string, all bool) string {
+
+	if all {
+		// NO filtering out anything.
+		return ""
+	}
+
+	//queryTemplate := "@environment:%s status:(%s)"
+	queryTemplate := "@EnvSource:%s status:(%s)"
 
 	// status:(info OR warn)
 	if strings.TrimSpace(query) != "" {
@@ -129,36 +136,75 @@ func displayResults(resp *models.DatadogQueryResponse, delim bool) {
 	}
 }
 
+func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, delim bool) {
+
+	// startAt is taken from the last search result and passed to the next query
+	// It will be blank until we actually GET a result.
+	startAt := ""
+	var resp *models.DatadogQueryResponse
+	var err error
+	endDate := time.Now().UTC()
+
+	// tail from this point onwards.
+	for {
+		if startAt == "" {
+			resp, err = dd.QueryDatadog(formedQuery, startDate, endDate)
+		} else {
+			resp, err = dd.QueryDatadogWithStartAt(formedQuery, startDate, endDate, startAt)
+		}
+
+		if err != nil {
+			fmt.Printf("ERROR %s\n", err.Error())
+			return
+		}
+
+		// if results, then display.
+		if len(resp.Logs) > 0 {
+			displayResults(resp, delim)
+			startAt = resp.Logs[ len(resp.Logs)-1].ID
+		} else {
+			startAt = "" // clear startAt since we have no continuation token :)
+		}
+	  time.Sleep(30*time.Second)
+		startDate = endDate
+		endDate = time.Now().UTC()
+	}
+}
+
 func main() {
 	fmt.Printf("So it begins...\n")
 
-	env := flag.String("env", "prod", "environment: test,stage,prod")
-	levels := flag.String("levels", "error", "level of logs to query against. info, warn, error. Can be singular or comma separated")
+	env := flag.String("env", "", "environment: test,stage,prod")
+	levels := flag.String("levels", "", "level of logs to query against. info, warn, error. Can be singular or comma separated")
 	query := flag.String("query", "", "Part of the query that is NOT specifying level or env.")
 	lastNMins := flag.Int("mins", 15, "Last N minutes to be searched")
 	stats := flag.Bool("stats", false, "Give summary/stats of logs as opposed to raw logs.")
 	delim := flag.Bool("delim", false, "Delimit log entries. Put clear indication between log entries (helpful for spammy logs")
+	tail := flag.Bool("tail", false, "Tail the Datadog logs. Will refresh every 30 seconds")
+	all := flag.Bool("all", false, "Show all logs, no query to filter out results. Takes priority over all other query related options")
 
 	flag.Parse()
 
 	config := readConfig()
 	dd := pkg.NewDatadog(config.DatadogAPIKey, config.DatadogAppKey)
-
-
 	startDate := time.Now().UTC().Add( time.Duration(-1 * (*lastNMins)) * time.Minute)
-	endDate := time.Now()
+	formedQuery := generateQuery(*env, *levels, *query, *all)
 
-	formedQuery := generateQuery(*env, *levels, *query)
+	if *tail {
+		// just tail constantly. Never exits.
+		tailDatadogLogs(dd, startDate, formedQuery, *delim)
+		return
+	}
+
+	endDate := time.Now().UTC()
 	resp, err := dd.QueryDatadog(formedQuery, startDate, endDate)
 	if err != nil {
 		fmt.Printf("ERROR %s\n", err.Error())
 		return
 	}
-
 	if *stats {
 		// just the stats. :)
 		displayStats(resp, startDate, endDate)
-
 	} else {
 		displayResults(resp, *delim)
 	}
