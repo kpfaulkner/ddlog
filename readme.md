@@ -20,7 +20,8 @@ CLI Options
 - mins : Last N minutes of logs to be searched
 - stats : Just show stats (counts currently) instead of displaying entire logs.
 - delim : Add text (-------) between each log entry displayed. Helps with spammy logs.
-
+- tail : Keep polling Datadog every 30 seconds for new log entries. Will not return/finish.
+- all : Return all logs. Takes priority over levels/query/env fields. 
 
 
 
