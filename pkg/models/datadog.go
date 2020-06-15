@@ -14,11 +14,13 @@ type DataDogLogContent struct {
 	Message string `json:"message"`
 }
 
+type DataDogLog struct {
+	ID      string `json:"id"`
+	Content DataDogLogContent `json:"content"`
+}
+
 type DatadogQueryResponse struct {
-	Logs []struct {
-		ID      string `json:"id"`
-		Content DataDogLogContent `json:"content"`
-	} `json:"logs"`
+	Logs []DataDogLog `json:"logs"`
 	NextLogID string `json:"nextLogId"`
 	Status    string `json:"status"`
 }

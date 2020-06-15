@@ -25,6 +25,7 @@ func (d *Datadog) QueryDatadog(query string, from time.Time, to time.Time) (*mod
 		return nil, err
 	}
 	ddResp, err := d.queryDatadogWithGeneratedQuery(queryBytes)
+	//ddResp.NextLogID
 	return ddResp, err
 }
 

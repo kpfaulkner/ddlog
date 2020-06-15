@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/user"
+	"sort"
 	"strings"
 	"time"
 )
@@ -50,9 +51,7 @@ func generateQuery( env string, levels string, query string, all bool) string {
 	}
 
 	queryTemplate := "@environment:%s status:(%s)"
-	//queryTemplate := "@EnvSource:%s status:(%s)"
 
-	// status:(info OR warn)
 	if strings.TrimSpace(query) != "" {
 		queryTemplate = queryTemplate + ` "%s"`
 		return fmt.Sprintf(queryTemplate, env,levels,query)
@@ -97,15 +96,20 @@ func generateMapForResults(resp *models.DatadogQueryResponse) map[time.Time][]mo
 	return m
 }
 
-func generateTimeString( t time.Time, loc *time.Location) string {
-	lt := t.In(loc)
+func generateTimeString( t time.Time, loc *time.Location, localTimeZone bool) string {
 	dZone,_ := t.Zone()
-	lZone,_ := lt.Zone()
-	return fmt.Sprintf("%s %s : %s %s", t.Format("2006-01-02 15:04:05"),dZone, lt.Format("2006-01-02 15:04:05"), lZone)
+	if localTimeZone {
+		lt := t.In(loc)
+		lZone,_ := lt.Zone()
+		return fmt.Sprintf("%s %s : %s %s", t.Format("2006-01-02 15:04:05.999999"),dZone, lt.Format("2006-01-02 15:04:05.999999"), lZone)
+	} else {
+		return fmt.Sprintf("%s %s ", t.Format("2006-01-02 15:04:05.999999"),dZone)
+	}
+
 }
 
 // just count for now... needs to add a lot more :)
-func displayStats(resp *models.DatadogQueryResponse, startDate time.Time, endDate time.Time) {
+func displayStats(resp *models.DatadogQueryResponse, startDate time.Time, endDate time.Time, localTimeZone bool) {
 
 	loc,_ := time.LoadLocation("Local")
 	logsByTime := generateMapForResults(resp)
@@ -114,7 +118,7 @@ func displayStats(resp *models.DatadogQueryResponse, startDate time.Time, endDat
 	for d.Before(endDate) {
 		l, ok := logsByTime[d]
 		if ok {
-			timeString := generateTimeString(d, loc)
+			timeString := generateTimeString(d, loc, localTimeZone)
 			fmt.Printf("%s : %d\n", timeString, len(l))
 		}
 
@@ -125,18 +129,42 @@ func displayStats(resp *models.DatadogQueryResponse, startDate time.Time, endDat
 	fmt.Printf("Result count %d\n", counts)
 }
 
-func displayResults(resp *models.DatadogQueryResponse, delim bool) {
+func displayResults(logs []models.DataDogLog, delim bool, localTimeZone bool) {
 	loc,_ := time.LoadLocation("Local")
-	for _,l := range resp.Logs {
-		timeString := generateTimeString(l.Content.Timestamp, loc)
-		fmt.Printf("%s : %s\n", timeString, l.Content.Message)
+	for _,l := range logs {
+		timeString := generateTimeString(l.Content.Timestamp, loc, localTimeZone)
+		fmt.Printf("%s : %s\n",timeString, l.Content.Message)
 		if delim {
 			fmt.Printf("-----------------------------------------------------------------\n")
 		}
 	}
 }
 
-func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, delim bool) {
+func filterLogsByStartAt(logs []models.DataDogLog, startAt string) []models.DataDogLog {
+  if startAt == "" {
+  	return logs
+  }
+
+  sort.Slice( logs, func(i int, j int) bool {
+  	return logs[i].Content.Timestamp.Before(logs[j].Content.Timestamp)
+  })
+
+  // loop through and only return logs AFTER the startAt is found.
+  newLogs := []models.DataDogLog{}
+  startAtFound := false
+  for _,l := range logs {
+  	if startAtFound {
+  		newLogs = append(newLogs, l)
+	  }
+
+	  if l.ID == startAt {
+	  	startAtFound = true
+	  }
+  }
+  return newLogs
+}
+
+func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, delim bool, localTimeZone bool) {
 
 	// startAt is taken from the last search result and passed to the next query
 	// It will be blank until we actually GET a result.
@@ -147,9 +175,15 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 
 	// tail from this point onwards.
 	for {
+		//fmt.Printf("query between %s and %s with startAt %s!\n", startDate, endDate, startAt)
 		if startAt == "" {
+			startDate = startDate.Add(-10 * time.Second)
 			resp, err = dd.QueryDatadog(formedQuery, startDate, endDate)
 		} else {
+
+			// if we're tailing and we have a startAt, then rewind the startDate a little.
+			// trying to track down where we're missing a log line or two.
+			startDate = startDate.Add(-10 * time.Second)
 			resp, err = dd.QueryDatadogWithStartAt(formedQuery, startDate, endDate, startAt)
 		}
 
@@ -160,7 +194,12 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 
 		// if results, then display.
 		if len(resp.Logs) > 0 {
-			displayResults(resp, delim)
+			// if startAt populated, then prune off log entries that we have already displayed.
+			//logs := filterLogsByStartAt(resp.Logs, startAt)
+
+			fmt.Printf("log count %d\n", len(resp.Logs))
+			logs := resp.Logs
+			displayResults(logs, delim, localTimeZone)
 			startAt = resp.Logs[ len(resp.Logs)-1].ID
 		} else {
 			startAt = "" // clear startAt since we have no continuation token :)
@@ -182,6 +221,7 @@ func main() {
 	delim := flag.Bool("delim", false, "Delimit log entries. Put clear indication between log entries (helpful for spammy logs")
 	tail := flag.Bool("tail", false, "Tail the Datadog logs. Will refresh every 30 seconds")
 	all := flag.Bool("all", false, "Show all logs, no query to filter out results. Takes priority over all other query related options")
+	local := flag.Bool("local", false, "Shows all log entries in both UTC and local timezones")
 
 	flag.Parse()
 
@@ -192,7 +232,7 @@ func main() {
 
 	if *tail {
 		// just tail constantly. Never exits.
-		tailDatadogLogs(dd, startDate, formedQuery, *delim)
+		tailDatadogLogs(dd, startDate, formedQuery, *delim, *local)
 		return
 	}
 
@@ -204,8 +244,8 @@ func main() {
 	}
 	if *stats {
 		// just the stats. :)
-		displayStats(resp, startDate, endDate)
+		displayStats(resp, startDate, endDate, *local)
 	} else {
-		displayResults(resp, *delim)
+		displayResults(resp.Logs, *delim, *local)
 	}
 }
