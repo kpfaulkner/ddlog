@@ -30,6 +30,7 @@ func (d *Datadog) QueryDatadog(query string, from time.Time, to time.Time) (*mod
 }
 
 // QueryDatadogWithStartAt does the query but also uses the StartAt feature so will only return log entries from "startat" position onwards
+// Have found startAt to be very unreliable. Ignoring this request for now and using reqular QueryDatadog() and filtering myself.
 func (d *Datadog) QueryDatadogWithStartAt(query string, from time.Time, to time.Time, startAt string) (*models.DatadogQueryResponse,error) {
 	ddQuery := models.GenerateDatadogQueryWithStartAt(query, from, to, startAt)
 	queryBytes,err := json.Marshal(ddQuery)

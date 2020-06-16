@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"os/user"
-	"sort"
 	"strings"
 	"time"
 )
@@ -140,19 +139,24 @@ func displayResults(logs []models.DataDogLog, delim bool, localTimeZone bool) {
 	}
 }
 
+// if startAt not found, then just return all logs :)
 func filterLogsByStartAt(logs []models.DataDogLog, startAt string) []models.DataDogLog {
-  if startAt == "" {
-  	return logs
-  }
+	// return them, sorted at least :)
+	if startAt == "" {
+		return logs
+	}
 
-  sort.Slice( logs, func(i int, j int) bool {
+	/*
+	sort.Slice( logs, func(i int, j int) bool {
   	return logs[i].Content.Timestamp.Before(logs[j].Content.Timestamp)
   })
+*/
 
   // loop through and only return logs AFTER the startAt is found.
   newLogs := []models.DataDogLog{}
   startAtFound := false
   for _,l := range logs {
+  	//fmt.Printf("log ID %s : time %s\n", l.ID, l.Content.Timestamp)
   	if startAtFound {
   		newLogs = append(newLogs, l)
 	  }
@@ -161,6 +165,12 @@ func filterLogsByStartAt(logs []models.DataDogLog, startAt string) []models.Data
 	  	startAtFound = true
 	  }
   }
+
+  // if startAt not found, just return original logs.
+  if !startAtFound {
+  	return logs
+  }
+
   return newLogs
 }
 
@@ -172,20 +182,12 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 	var resp *models.DatadogQueryResponse
 	var err error
 	endDate := time.Now().UTC()
+  lastEndDateWithResults := startDate
 
 	// tail from this point onwards.
 	for {
 		//fmt.Printf("query between %s and %s with startAt %s!\n", startDate, endDate, startAt)
-		if startAt == "" {
-			startDate = startDate.Add(-10 * time.Second)
-			resp, err = dd.QueryDatadog(formedQuery, startDate, endDate)
-		} else {
-
-			// if we're tailing and we have a startAt, then rewind the startDate a little.
-			// trying to track down where we're missing a log line or two.
-			startDate = startDate.Add(-10 * time.Second)
-			resp, err = dd.QueryDatadogWithStartAt(formedQuery, startDate, endDate, startAt)
-		}
+		resp, err = dd.QueryDatadog(formedQuery, startDate, endDate)
 
 		if err != nil {
 			fmt.Printf("ERROR %s\n", err.Error())
@@ -195,17 +197,16 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 		// if results, then display.
 		if len(resp.Logs) > 0 {
 			// if startAt populated, then prune off log entries that we have already displayed.
-			//logs := filterLogsByStartAt(resp.Logs, startAt)
-
-			fmt.Printf("log count %d\n", len(resp.Logs))
-			logs := resp.Logs
-			displayResults(logs, delim, localTimeZone)
-			startAt = resp.Logs[ len(resp.Logs)-1].ID
-		} else {
-			startAt = "" // clear startAt since we have no continuation token :)
+			logs := filterLogsByStartAt(resp.Logs, startAt)
+			if len(logs) > 0 {
+				displayResults(logs, delim, localTimeZone)
+				startAt = logs[len(logs)-1].ID
+				lastEndDateWithResults = logs[len(logs)-1].Content.Timestamp
+			}
 		}
+
 	  time.Sleep(30*time.Second)
-		startDate = endDate
+		startDate = lastEndDateWithResults
 		endDate = time.Now().UTC()
 	}
 }
