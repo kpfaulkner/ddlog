@@ -184,6 +184,7 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 	endDate := time.Now().UTC()
   lastEndDateWithResults := startDate
 
+  allowedRetries := 5
 	// tail from this point onwards.
 	for {
 		//fmt.Printf("query between %s and %s with startAt %s!\n", startDate, endDate, startAt)
@@ -191,7 +192,11 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 
 		if err != nil {
 			fmt.Printf("ERROR %s\n", err.Error())
-			return
+			// let it continue....  probably just a momentary error, but will give it 5 chances.
+			allowedRetries--
+			if allowedRetries == 0 {
+				return
+			}
 		}
 
 		// if results, then display.
