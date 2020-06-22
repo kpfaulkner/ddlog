@@ -49,12 +49,7 @@ func generateQuery( env string, levels string, query string, all bool) string {
 		return ""
 	}
 
-	queryTemplate := "@environment:%s status:(%s)"
 
-	if strings.TrimSpace(query) != "" {
-		queryTemplate = queryTemplate + ` "%s"`
-		return fmt.Sprintf(queryTemplate, env,levels,query)
-	}
 
 	// check multi level or not.
 	levelSplit := strings.Split(levels, ",")
@@ -66,6 +61,14 @@ func generateQuery( env string, levels string, query string, all bool) string {
 			levelElements = append(levelElements,lvl)
 		}
 	}
+
+	queryTemplate := "@environment:%s status:(%s)"
+
+	if strings.TrimSpace(query) != "" {
+		queryTemplate = queryTemplate + ` "%s"`
+		return fmt.Sprintf(queryTemplate, env,strings.Join(levelElements, " "),query)
+	}
+
 	return fmt.Sprintf(queryTemplate, env, strings.Join(levelElements, " "))
 }
 
@@ -197,12 +200,15 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 			if allowedRetries == 0 {
 				return
 			}
+
+			fmt.Printf("retries left %d\n", allowedRetries)
 		}
 
 		// if results, then display.
-		if len(resp.Logs) > 0 {
+		if err == nil && len(resp.Logs) > 0 {
 			// if startAt populated, then prune off log entries that we have already displayed.
 			logs := filterLogsByStartAt(resp.Logs, startAt)
+			//logs := resp.Logs
 			if len(logs) > 0 {
 				displayResults(logs, delim, localTimeZone)
 				startAt = logs[len(logs)-1].ID
@@ -211,7 +217,7 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 		}
 
 	  time.Sleep(30*time.Second)
-		startDate = lastEndDateWithResults
+		startDate = lastEndDateWithResults.Add(-5*time.Second)
 		endDate = time.Now().UTC()
 	}
 }
