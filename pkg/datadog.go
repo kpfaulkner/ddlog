@@ -8,7 +8,7 @@ import (
 )
 
 type Datadog struct {
-  comms comms.DatadogComms
+	comms comms.DatadogComms
 }
 
 func NewDatadog(apiKey string, appKey string) *Datadog {
@@ -18,9 +18,9 @@ func NewDatadog(apiKey string, appKey string) *Datadog {
 }
 
 // QueryDatadog does the query... duh :)
-func (d *Datadog) QueryDatadog(query string, from time.Time, to time.Time) (*models.DatadogQueryResponse,error) {
+func (d *Datadog) QueryDatadog(query string, from time.Time, to time.Time) (*models.DatadogQueryResponse, error) {
 	ddQuery := models.GenerateDatadogQuery(query, from, to)
-	queryBytes,err := json.Marshal(ddQuery)
+	queryBytes, err := json.Marshal(ddQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -31,9 +31,9 @@ func (d *Datadog) QueryDatadog(query string, from time.Time, to time.Time) (*mod
 
 // QueryDatadogWithStartAt does the query but also uses the StartAt feature so will only return log entries from "startat" position onwards
 // Have found startAt to be very unreliable. Ignoring this request for now and using reqular QueryDatadog() and filtering myself.
-func (d *Datadog) QueryDatadogWithStartAt(query string, from time.Time, to time.Time, startAt string) (*models.DatadogQueryResponse,error) {
+func (d *Datadog) QueryDatadogWithStartAt(query string, from time.Time, to time.Time, startAt string) (*models.DatadogQueryResponse, error) {
 	ddQuery := models.GenerateDatadogQueryWithStartAt(query, from, to, startAt)
-	queryBytes,err := json.Marshal(ddQuery)
+	queryBytes, err := json.Marshal(ddQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (d *Datadog) QueryDatadogWithStartAt(query string, from time.Time, to time.
 }
 
 // queryDatadog does the query.
-func (d *Datadog) queryDatadogWithGeneratedQuery(queryBytes []byte) (*models.DatadogQueryResponse,error) {
+func (d *Datadog) queryDatadogWithGeneratedQuery(queryBytes []byte) (*models.DatadogQueryResponse, error) {
 
 	resp, err := d.comms.DoPost(queryBytes)
 	if err != nil {
@@ -57,4 +57,3 @@ func (d *Datadog) queryDatadogWithGeneratedQuery(queryBytes []byte) (*models.Dat
 
 	return &ddResp, err
 }
-

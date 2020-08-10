@@ -13,11 +13,10 @@ import (
 	"time"
 )
 
-
 // read config from multiple locations.
 // first try local dir...
 // if fails, try ~/.ddlog/config.json
-func readConfig() models.Config{
+func readConfig() models.Config {
 	var configFile *os.File
 	var err error
 	configFile, err = os.Open("config.json")
@@ -25,12 +24,12 @@ func readConfig() models.Config{
 		// try and read home dir location.
 		usr, err := user.Current()
 		if err != nil {
-			log.Fatal( err )
+			log.Fatal(err)
 		}
 		configPath := fmt.Sprintf("%s/.ddlog/config.json", usr.HomeDir)
 		configFile, err = os.Open(configPath)
 		if err != nil {
-			log.Fatal( err )
+			log.Fatal(err)
 		}
 	}
 	defer configFile.Close()
@@ -42,23 +41,21 @@ func readConfig() models.Config{
 	return config
 }
 
-func generateQuery( env string, levels string, query string, all bool) string {
+func generateQuery(env string, levels string, query string, all bool) string {
 
 	if all {
 		// NO filtering out anything.
 		return ""
 	}
 
-
-
 	// check multi level or not.
 	levelSplit := strings.Split(levels, ",")
 	levelElements := []string{levelSplit[0]}
 
 	if len(levelSplit) > 1 {
-		for _,lvl := range levelSplit[1:] {
-			levelElements = append(levelElements,"OR")
-			levelElements = append(levelElements,lvl)
+		for _, lvl := range levelSplit[1:] {
+			levelElements = append(levelElements, "OR")
+			levelElements = append(levelElements, lvl)
 		}
 	}
 
@@ -66,7 +63,7 @@ func generateQuery( env string, levels string, query string, all bool) string {
 
 	if strings.TrimSpace(query) != "" {
 		queryTemplate = queryTemplate + ` "%s"`
-		return fmt.Sprintf(queryTemplate, env,strings.Join(levelElements, " "),query)
+		return fmt.Sprintf(queryTemplate, env, strings.Join(levelElements, " "), query)
 	}
 
 	return fmt.Sprintf(queryTemplate, env, strings.Join(levelElements, " "))
@@ -77,12 +74,12 @@ func generateQuery( env string, levels string, query string, all bool) string {
 func generateMapForResults(resp *models.DatadogQueryResponse) map[time.Time][]models.DataDogLogContent {
 	m := make(map[time.Time][]models.DataDogLogContent)
 
-	for _,logEntry := range resp.Logs {
+	for _, logEntry := range resp.Logs {
 
 		// rounded to minute
-		roundedTime := time.Date( logEntry.Content.Timestamp.Year(), logEntry.Content.Timestamp.Month(),
-														  logEntry.Content.Timestamp.Day(), logEntry.Content.Timestamp.Hour(),
-														  logEntry.Content.Timestamp.Minute(),0,0,logEntry.Content.Timestamp.Location())
+		roundedTime := time.Date(logEntry.Content.Timestamp.Year(), logEntry.Content.Timestamp.Month(),
+			logEntry.Content.Timestamp.Day(), logEntry.Content.Timestamp.Hour(),
+			logEntry.Content.Timestamp.Minute(), 0, 0, logEntry.Content.Timestamp.Location())
 
 		var logs []models.DataDogLogContent
 		var ok bool
@@ -98,14 +95,14 @@ func generateMapForResults(resp *models.DatadogQueryResponse) map[time.Time][]mo
 	return m
 }
 
-func generateTimeString( t time.Time, loc *time.Location, localTimeZone bool) string {
-	dZone,_ := t.Zone()
+func generateTimeString(t time.Time, loc *time.Location, localTimeZone bool) string {
+	dZone, _ := t.Zone()
 	if localTimeZone {
 		lt := t.In(loc)
-		lZone,_ := lt.Zone()
-		return fmt.Sprintf("%s %s : %s %s", t.Format("2006-01-02 15:04:05.999999"),dZone, lt.Format("2006-01-02 15:04:05.999999"), lZone)
+		lZone, _ := lt.Zone()
+		return fmt.Sprintf("%s %s : %s %s", t.Format("2006-01-02 15:04:05.999999"), dZone, lt.Format("2006-01-02 15:04:05.999999"), lZone)
 	} else {
-		return fmt.Sprintf("%s %s ", t.Format("2006-01-02 15:04:05.999999"),dZone)
+		return fmt.Sprintf("%s %s ", t.Format("2006-01-02 15:04:05.999999"), dZone)
 	}
 
 }
@@ -113,10 +110,10 @@ func generateTimeString( t time.Time, loc *time.Location, localTimeZone bool) st
 // just count for now... needs to add a lot more :)
 func displayStats(resp *models.DatadogQueryResponse, startDate time.Time, endDate time.Time, localTimeZone bool) {
 
-	loc,_ := time.LoadLocation("Local")
+	loc, _ := time.LoadLocation("Local")
 	logsByTime := generateMapForResults(resp)
-	d := time.Date( startDate.Year(), startDate.Month(), startDate.Day(), startDate.Hour(), startDate.Minute(),0,0,
-								  startDate.Location())
+	d := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), startDate.Hour(), startDate.Minute(), 0, 0,
+		startDate.Location())
 	for d.Before(endDate) {
 		l, ok := logsByTime[d]
 		if ok {
@@ -132,10 +129,10 @@ func displayStats(resp *models.DatadogQueryResponse, startDate time.Time, endDat
 }
 
 func displayResults(logs []models.DataDogLog, delim bool, localTimeZone bool) {
-	loc,_ := time.LoadLocation("Local")
-	for _,l := range logs {
+	loc, _ := time.LoadLocation("Local")
+	for _, l := range logs {
 		timeString := generateTimeString(l.Content.Timestamp, loc, localTimeZone)
-		fmt.Printf("%s : %s\n",timeString, l.Content.Message)
+		fmt.Printf("%s : %s\n", timeString, l.Content.Message)
 		if delim {
 			fmt.Printf("-----------------------------------------------------------------\n")
 		}
@@ -150,31 +147,31 @@ func filterLogsByStartAt(logs []models.DataDogLog, startAt string) []models.Data
 	}
 
 	/*
-	sort.Slice( logs, func(i int, j int) bool {
-  	return logs[i].Content.Timestamp.Before(logs[j].Content.Timestamp)
-  })
-*/
+		sort.Slice( logs, func(i int, j int) bool {
+	  	return logs[i].Content.Timestamp.Before(logs[j].Content.Timestamp)
+	  })
+	*/
 
-  // loop through and only return logs AFTER the startAt is found.
-  newLogs := []models.DataDogLog{}
-  startAtFound := false
-  for _,l := range logs {
-  	//fmt.Printf("log ID %s : time %s\n", l.ID, l.Content.Timestamp)
-  	if startAtFound {
-  		newLogs = append(newLogs, l)
-	  }
+	// loop through and only return logs AFTER the startAt is found.
+	newLogs := []models.DataDogLog{}
+	startAtFound := false
+	for _, l := range logs {
+		//fmt.Printf("log ID %s : time %s\n", l.ID, l.Content.Timestamp)
+		if startAtFound {
+			newLogs = append(newLogs, l)
+		}
 
-	  if l.ID == startAt {
-	  	startAtFound = true
-	  }
-  }
+		if l.ID == startAt {
+			startAtFound = true
+		}
+	}
 
-  // if startAt not found, just return original logs.
-  if !startAtFound {
-  	return logs
-  }
+	// if startAt not found, just return original logs.
+	if !startAtFound {
+		return logs
+	}
 
-  return newLogs
+	return newLogs
 }
 
 func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, delim bool, localTimeZone bool) {
@@ -185,9 +182,9 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 	var resp *models.DatadogQueryResponse
 	var err error
 	endDate := time.Now().UTC()
-  lastEndDateWithResults := startDate
+	lastEndDateWithResults := startDate
 
-  allowedRetries := 5
+	allowedRetries := 5
 	// tail from this point onwards.
 	for {
 		//fmt.Printf("query between %s and %s with startAt %s!\n", startDate, endDate, startAt)
@@ -216,8 +213,8 @@ func tailDatadogLogs(dd *pkg.Datadog, startDate time.Time, formedQuery string, d
 			}
 		}
 
-	  time.Sleep(30*time.Second)
-		startDate = lastEndDateWithResults.Add(-5*time.Second)
+		time.Sleep(30 * time.Second)
+		startDate = lastEndDateWithResults.Add(-5 * time.Second)
 		endDate = time.Now().UTC()
 	}
 }
@@ -239,7 +236,7 @@ func main() {
 
 	config := readConfig()
 	dd := pkg.NewDatadog(config.DatadogAPIKey, config.DatadogAppKey)
-	startDate := time.Now().UTC().Add( time.Duration(-1 * (*lastNMins)) * time.Minute)
+	startDate := time.Now().UTC().Add(time.Duration(-1*(*lastNMins)) * time.Minute)
 	formedQuery := generateQuery(*env, *levels, *query, *all)
 
 	if *tail {

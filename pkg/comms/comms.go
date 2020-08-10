@@ -10,10 +10,10 @@ import (
 type DatadogComms struct {
 	apiKey string
 	appKey string
-  url string
+	url    string
 }
 
-func NewDatadogComms( apiKey string, appKey string) DatadogComms {
+func NewDatadogComms(apiKey string, appKey string) DatadogComms {
 	c := DatadogComms{}
 	c.apiKey = apiKey
 	c.appKey = appKey
@@ -23,8 +23,8 @@ func NewDatadogComms( apiKey string, appKey string) DatadogComms {
 	return c
 }
 
-func (c DatadogComms) DoPost(body []byte ) ([]byte, error) {
-	req, err := http.NewRequest("POST", c.url,  bytes.NewBuffer(body))
+func (c DatadogComms) DoPost(body []byte) ([]byte, error) {
+	req, err := http.NewRequest("POST", c.url, bytes.NewBuffer(body))
 	req.Header.Add("DD-API-KEY", c.apiKey)
 	req.Header.Add("DD-APPLICATION-KEY", c.appKey)
 	req.Header.Add("Content-type", "application/json")
@@ -39,7 +39,7 @@ func (c DatadogComms) DoPost(body []byte ) ([]byte, error) {
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
-  return respBody, nil
+	return respBody, nil
 }

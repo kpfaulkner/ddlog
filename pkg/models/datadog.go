@@ -15,16 +15,15 @@ type DataDogLogContent struct {
 }
 
 type DataDogLog struct {
-	ID      string `json:"id"`
+	ID      string            `json:"id"`
 	Content DataDogLogContent `json:"content"`
 }
 
 type DatadogQueryResponse struct {
-	Logs []DataDogLog `json:"logs"`
-	NextLogID string `json:"nextLogId"`
-	Status    string `json:"status"`
+	Logs      []DataDogLog `json:"logs"`
+	NextLogID string       `json:"nextLogId"`
+	Status    string       `json:"status"`
 }
-
 
 type DatadogQueryRequest struct {
 	Query string `json:"query"`
@@ -42,22 +41,22 @@ type DatadogQueryRequestWithStartAt struct {
 		From string `json:"from"`
 		To   string `json:"to"`
 	} `json:"time"`
-	Sort  string `json:"sort"`
-	Limit int    `json:"limit"`
-	StartAt string    `json:"startAt"`
+	Sort    string `json:"sort"`
+	Limit   int    `json:"limit"`
+	StartAt string `json:"startAt"`
 }
 
-func GenerateDatadogQuery( query string, from time.Time, to time.Time ) DatadogQueryRequest {
+func GenerateDatadogQuery(query string, from time.Time, to time.Time) DatadogQueryRequest {
 	q := DatadogQueryRequest{}
 	q.Query = query
-  q.Time.From = from.Format("2006-01-02T15:04:05Z")
-  q.Time.To = to.Format("2006-01-02T15:04:05Z")
-  q.Sort = "asc"
-  q.Limit = 1000
+	q.Time.From = from.Format("2006-01-02T15:04:05Z")
+	q.Time.To = to.Format("2006-01-02T15:04:05Z")
+	q.Sort = "asc"
+	q.Limit = 1000
 	return q
 }
 
-func GenerateDatadogQueryWithStartAt( query string, from time.Time, to time.Time, startAt string ) DatadogQueryRequestWithStartAt {
+func GenerateDatadogQueryWithStartAt(query string, from time.Time, to time.Time, startAt string) DatadogQueryRequestWithStartAt {
 	q := DatadogQueryRequestWithStartAt{}
 	q.Query = query
 	q.Time.From = from.Format("2006-01-02T15:04:05Z")
