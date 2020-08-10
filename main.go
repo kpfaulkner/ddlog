@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/kpfaulkner/ddlog/pkg"
 	"github.com/kpfaulkner/ddlog/pkg/models"
+	"github.com/kpfaulkner/gologmine/pkg/logmine"
 	"log"
 	"os"
 	"os/user"
@@ -231,6 +232,7 @@ func main() {
 	tail := flag.Bool("tail", false, "Tail the Datadog logs. Will refresh every 30 seconds")
 	all := flag.Bool("all", false, "Show all logs, no query to filter out results. Takes priority over all other query related options")
 	local := flag.Bool("local", false, "Shows all log entries in both UTC and local timezones")
+	patternLevel := flag.Int("pattern", -1, "Pattern level detection. 0-3 ")  // -1 purely to indicate NOT used.
 
 	flag.Parse()
 
@@ -255,6 +257,24 @@ func main() {
 		// just the stats. :)
 		displayStats(resp, startDate, endDate, *local)
 	} else {
-		displayResults(resp.Logs, *delim, *local)
+
+		if *patternLevel >= 0 && *patternLevel <= 3 {
+			patternResults := generatePatterns(resp.Logs, *patternLevel)
+		} else {
+			displayResults(resp.Logs, *delim, *local)
+		}
 	}
+}
+
+func generatePatterns(logs []models.DataDogLog, i int) interface{} {
+  lm := logmine.NewLogMine( []float64{0.01,0.1,0.3,0.9})
+	err = lm.ProcessLogsFromReader(f, *maxLevel)
+	if err != nil {
+		log.Fatalf("error while processing. %s\n", err.Error())
+	}
+
+	//lm.DisplayFinalOutput(false)
+
+	lm.DisplayFinalOutput(*simplify)
+
 }
