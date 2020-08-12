@@ -259,22 +259,30 @@ func main() {
 	} else {
 
 		if *patternLevel >= 0 && *patternLevel <= 3 {
-			patternResults := generatePatterns(resp.Logs, *patternLevel)
+			generatePatterns(resp.Logs, *patternLevel)
+
 		} else {
 			displayResults(resp.Logs, *delim, *local)
 		}
 	}
 }
 
-func generatePatterns(logs []models.DataDogLog, i int) interface{} {
+
+func generatePatterns(logs []models.DataDogLog, maxLevel int) {
   lm := logmine.NewLogMine( []float64{0.01,0.1,0.3,0.9})
-	err = lm.ProcessLogsFromReader(f, *maxLevel)
+
+  logStringSlice := []string{}
+  for _,i := range logs {
+  	logStringSlice = append(logStringSlice, i.Content.Message)
+  }
+
+  err := lm.ProcessLogsFromSlice(logStringSlice, maxLevel)
 	if err != nil {
 		log.Fatalf("error while processing. %s\n", err.Error())
 	}
 
-	//lm.DisplayFinalOutput(false)
-
-	lm.DisplayFinalOutput(*simplify)
+	// default to simplified output
+	//res, err := lm.GenerateFinalOutput(true)
+	lm.DisplayFinalOutput(true)
 
 }
