@@ -72,10 +72,10 @@ func generateQuery(env string, levels string, query string, all bool) string {
 
 // generateMapForResults map timestamp to list of logs that happened during that minute
 // the key (time) is rounded to minute.
-func generateMapForResults(resp *models.DatadogQueryResponse) map[time.Time][]models.DataDogLogContent {
+func generateMapForResults(logs []models.DataDogLog) map[time.Time][]models.DataDogLogContent {
 	m := make(map[time.Time][]models.DataDogLogContent)
 
-	for _, logEntry := range resp.Logs {
+	for _, logEntry := range logs {
 
 		// rounded to minute
 		roundedTime := time.Date(logEntry.Content.Timestamp.Year(), logEntry.Content.Timestamp.Month(),
@@ -109,10 +109,10 @@ func generateTimeString(t time.Time, loc *time.Location, localTimeZone bool) str
 }
 
 // just count for now... needs to add a lot more :)
-func displayStats(resp *models.DatadogQueryResponse, startDate time.Time, endDate time.Time, localTimeZone bool) {
+func displayStats(logs []models.DataDogLog, startDate time.Time, endDate time.Time, localTimeZone bool) {
 
 	loc, _ := time.LoadLocation("Local")
-	logsByTime := generateMapForResults(resp)
+	logsByTime := generateMapForResults(logs)
 	d := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), startDate.Hour(), startDate.Minute(), 0, 0,
 		startDate.Location())
 	for d.Before(endDate) {
@@ -125,7 +125,7 @@ func displayStats(resp *models.DatadogQueryResponse, startDate time.Time, endDat
 		d = d.Add(1 * time.Minute)
 	}
 
-	counts := len(resp.Logs)
+	counts := len(logs)
 	fmt.Printf("Result count %d\n", counts)
 }
 
@@ -247,22 +247,35 @@ func main() {
 		return
 	}
 
+	logs := []models.DataDogLog{}
 	endDate := time.Now().UTC()
 	resp, err := dd.QueryDatadog(formedQuery, startDate, endDate)
 	if err != nil {
 		fmt.Printf("ERROR %s\n", err.Error())
 		return
 	}
+
+	logs = append(logs, resp.Logs...)
+	// now loop until no nextId
+	for resp.NextLogID != "" {
+		resp, err = dd.QueryDatadogWithStartAt(formedQuery, startDate, endDate, resp.NextLogID)
+		if err != nil {
+			fmt.Printf("ERROR %s\n", err.Error())
+			return
+		}
+		logs = append(logs, resp.Logs...)
+	}
+
 	if *stats {
 		// just the stats. :)
-		displayStats(resp, startDate, endDate, *local)
+		displayStats(logs, startDate, endDate, *local)
 	} else {
 
 		if *patternLevel >= 0 && *patternLevel <= 3 {
-			generatePatterns(resp.Logs, *patternLevel)
+			generatePatterns(logs, *patternLevel)
 
 		} else {
-			displayResults(resp.Logs, *delim, *local)
+			displayResults(logs, *delim, *local)
 		}
 	}
 }
