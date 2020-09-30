@@ -70,32 +70,6 @@ func generateQuery(env string, levels string, query string, all bool) string {
 	return fmt.Sprintf(queryTemplate, env, strings.Join(levelElements, " "))
 }
 
-// generateMapForResults map timestamp to list of logs that happened during that minute
-// the key (time) is rounded to minute.
-func generateMapForResults(logs []models.DataDogLog) map[time.Time][]models.DataDogLogContent {
-	m := make(map[time.Time][]models.DataDogLogContent)
-
-	for _, logEntry := range logs {
-
-		// rounded to minute
-		roundedTime := time.Date(logEntry.Content.Timestamp.Year(), logEntry.Content.Timestamp.Month(),
-			logEntry.Content.Timestamp.Day(), logEntry.Content.Timestamp.Hour(),
-			logEntry.Content.Timestamp.Minute(), 0, 0, logEntry.Content.Timestamp.Location())
-
-		var logs []models.DataDogLogContent
-		var ok bool
-		logs, ok = m[roundedTime]
-		if !ok {
-			logs = []models.DataDogLogContent{}
-			m[roundedTime] = logs
-		}
-		logs = append(logs, logEntry.Content)
-		m[roundedTime] = logs
-	}
-
-	return m
-}
-
 func generateTimeString(t time.Time, loc *time.Location, localTimeZone bool) string {
 	dZone, _ := t.Zone()
 	if localTimeZone {
@@ -112,7 +86,7 @@ func generateTimeString(t time.Time, loc *time.Location, localTimeZone bool) str
 func displayStats(logs []models.DataDogLog, startDate time.Time, endDate time.Time, localTimeZone bool) {
 
 	loc, _ := time.LoadLocation("Local")
-	logsByTime := generateMapForResults(logs)
+	logsByTime := pkg.GroupLogsByMinute(logs)
 	d := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), startDate.Hour(), startDate.Minute(), 0, 0,
 		startDate.Location())
 	for d.Before(endDate) {

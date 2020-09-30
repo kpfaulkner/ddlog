@@ -56,3 +56,29 @@ func (d *Datadog) queryDatadogWithGeneratedQuery(queryBytes []byte) (*models.Dat
 
 	return &ddResp, err
 }
+
+// generateMapForResults map timestamp to list of logs that happened during that minute
+// the key (time) is rounded to minute.
+func GroupLogsByMinute(logs []models.DataDogLog) map[time.Time][]models.DataDogLogContent {
+	m := make(map[time.Time][]models.DataDogLogContent)
+
+	for _, logEntry := range logs {
+
+		// rounded to minute
+		roundedTime := time.Date(logEntry.Content.Timestamp.Year(), logEntry.Content.Timestamp.Month(),
+			logEntry.Content.Timestamp.Day(), logEntry.Content.Timestamp.Hour(),
+			logEntry.Content.Timestamp.Minute(), 0, 0, logEntry.Content.Timestamp.Location())
+
+		var logs []models.DataDogLogContent
+		var ok bool
+		logs, ok = m[roundedTime]
+		if !ok {
+			logs = []models.DataDogLogContent{}
+			m[roundedTime] = logs
+		}
+		logs = append(logs, logEntry.Content)
+		m[roundedTime] = logs
+	}
+
+	return m
+}
