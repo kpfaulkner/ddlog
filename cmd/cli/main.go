@@ -1,74 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/kpfaulkner/ddlog/pkg"
 	"github.com/kpfaulkner/ddlog/pkg/models"
 	"github.com/kpfaulkner/gologmine/pkg/logmine"
 	"log"
-	"os"
-	"os/user"
-	"strings"
 	"time"
 )
-
-// read config from multiple locations.
-// first try local dir...
-// if fails, try ~/.ddlog/config.json
-func readConfig() models.Config {
-	var configFile *os.File
-	var err error
-	configFile, err = os.Open("config.json")
-	if err != nil {
-		// try and read home dir location.
-		usr, err := user.Current()
-		if err != nil {
-			log.Fatal(err)
-		}
-		configPath := fmt.Sprintf("%s/.ddlog/config.json", usr.HomeDir)
-		configFile, err = os.Open(configPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	defer configFile.Close()
-
-	config := models.Config{}
-	jsonParser := json.NewDecoder(configFile)
-	jsonParser.Decode(&config)
-
-	return config
-}
-
-func generateQuery(env string, levels string, query string, all bool) string {
-
-	if all {
-		// NO filtering out anything.
-		return ""
-	}
-
-	// check multi level or not.
-	levelSplit := strings.Split(levels, ",")
-	levelElements := []string{levelSplit[0]}
-
-	if len(levelSplit) > 1 {
-		for _, lvl := range levelSplit[1:] {
-			levelElements = append(levelElements, "OR")
-			levelElements = append(levelElements, lvl)
-		}
-	}
-
-	queryTemplate := "@environment:%s status:(%s)"
-
-	if strings.TrimSpace(query) != "" {
-		queryTemplate = queryTemplate + ` "%s"`
-		return fmt.Sprintf(queryTemplate, env, strings.Join(levelElements, " "), query)
-	}
-
-	return fmt.Sprintf(queryTemplate, env, strings.Join(levelElements, " "))
-}
 
 func generateTimeString(t time.Time, loc *time.Location, localTimeZone bool) string {
 	dZone, _ := t.Zone()
@@ -210,10 +150,10 @@ func main() {
 
 	flag.Parse()
 
-	config := readConfig()
+	config := pkg.ReadConfig()
 	dd := pkg.NewDatadog(config.DatadogAPIKey, config.DatadogAppKey)
 	startDate := time.Now().UTC().Add(time.Duration(-1*(*lastNMins)) * time.Minute)
-	formedQuery := generateQuery(*env, *levels, *query, *all)
+	formedQuery := pkg.GenerateQuery(*env, *levels, *query, *all)
 
 	if *tail {
 		// just tail constantly. Never exits.
